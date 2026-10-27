@@ -1,0 +1,11 @@
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+.openai/
+node_modules/
+.DS_Store
+*.xlsx
+*.xls

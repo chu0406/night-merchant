@@ -1,0 +1,44 @@
+const $=s=>document.querySelector(s),D=window.DATA;let tab='route',merchant='',num='',type='',night=false;
+function norm(v){return window.ZH.simplify(v).toLowerCase().replace(/[\s，,、（）()%％]/g,'')}
+function match(v){return norm($('#query').value).split(/\s+/).every(q=>norm(v).includes(q))}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const label=s=>({'普通商人':'普通商人','村落商人':'村落商人','黄金树商人':'黃金樹商人','无法通过商人购买的灵药露滴':'無法購買的靈藥露滴'}[s]||s);
+function select(id,opts,value){return `<select id="${id}" aria-label="${opts[0][1]}">${opts.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===value?'selected':''}>${esc(t)}</option>`).join('')}</select>`}
+function filters(){let html='';if(tab==='route'){html=`<label class="toggle"><input id="night" type="checkbox" ${night?'checked':''}>深夜模式</label>`;}if(tab!=='map'&&tab!=='route'){html+=select('merchant',[['','全部商人'],...([...new Set((tab==='weapons'?D.weapons:D.items).map(x=>x.merchant))].map(v=>[v,label(v)]))],merchant);if(tab==='weapons'){html+=select('number',[['','全部編號'],...Array.from({length:21},(_,i)=>[i,`${i} 號`])],num);html+=select('type',[['','全部武器類型'],...[...new Set(D.weapons.map(x=>x.type))].map(x=>[x,x])],type);html+=`<label class="toggle"><input id="night" type="checkbox" ${night?'checked':''}>深夜模式</label>`}}$('#filters').innerHTML=html;['merchant','number','type'].forEach(id=>{const el=$('#'+id);if(el)el.onchange=()=>{if(id==='merchant')merchant=el.value;if(id==='number')num=el.value;if(id==='type')type=el.value;render()}});if($('#night'))$('#night').onchange=e=>{night=e.target.checked;render()}}
+function render(){if(tab==='route'){renderRoute();return;}let html='',n=0;if(tab==='map'){const rows=D.groups.map((g,i)=>({...g,i})).filter(g=>match([...g.small,...g.large].join(' ')));n=rows.length;if(norm($('#query').value).includes('志留')||!$('#query').value)html+='<div class="notice">志留亞的樹矛有 3 種對應：請確認「屬性攻擊力／防禦反擊／形成輝劍」詞條。</div>';html+=rows.map(g=>`<article class="mapping"><div class="cardhead"><strong>對應組 ${String(g.i+1).padStart(2,'0')}</strong><span>${g.small.length} 個小商人線索</span></div><div class="small"><div class="sectionlabel">小商人 · 找到其中一項</div><div class="chips">${g.small.map(v=>`<span class="chip">${esc(v)}</span>`).join('')}</div></div><div class="large"><div class="sectionlabel">↓ 對應大商人 · 傳說武器與效果</div><ul>${g.large.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></div></article>`).join('')}else if(tab==='weapons'){const rows=D.weapons.filter(x=>(!merchant||x.merchant===merchant)&&(num===''||x.number===Number(num))&&(!type||x.type===type)&&match(Object.values(x).join(' ')));n=rows.length;html=rows.map(x=>`<details class="product"><summary><div class="meta"><span>${label(x.merchant)} · ${x.number} 號</span><span>${esc(x.type)}${x.element?' · '+esc(x.element):''}</span></div><h3>${esc(x.name)}</h3><div class="effect">${esc(x.effect||'原表未提供詞條')}</div><div class="meta" style="margin-top:12px"><span class="price">${Number(night&&x.nightPrice?x.nightPrice:x.price).toLocaleString()} 盧恩${night&&x.nightPrice?' · 深夜改價':''}</span><span>${esc(x.tags||'')}</span></div><div class="hint">點開查看戰技與完整詞條 ＋</div></summary><div class="detail"><b>戰技／法術</b>\n${esc(x.skill||'未提供')}\n\n<b>深夜模式詛咒詞條</b>\n${esc(x.curse||'原表未列出')}\n\n<span class="hint">來源：${esc(x.merchant)}-武器，第 ${x.row} 列</span></div></details>`).join('')}else{const rows=D.items.filter(x=>(!merchant||x.merchant===merchant)&&match(Object.values(x).join(' ')));n=rows.length;html=rows.map(x=>`<details class="product"><summary><div class="meta"><span>${label(x.merchant)}</span><span class="price">${x.price!=null?Number(x.price).toLocaleString()+' 盧恩':'—'}</span></div><h3>${esc(x.name)}</h3><div class="effect">${esc(x.rule||'原表未提供規則')}</div><div class="hint">點開查看效果與限購 ＋</div></summary><div class="detail"><b>效果說明</b>\n${esc(x.effect||'原表未提供')}\n\n<b>限購</b> ${esc(x.limit??'未列出')}</div></details>`).join('')}
+$('#results').innerHTML=n?html:'<div class="empty">沒有符合的資料<br><small>試試武器名稱的一部分，或重設篩選條件。</small></div>';$('#count').textContent=tab==='map'?`${n} / 7 組對應 · 可雙向搜尋`:`${n} 筆商品 · 點開查看詳情`;window.ZH.apply()}
+let routeNumber=null;
+function routeWeapon(x){return `<details class="product"><summary><div class="meta"><span>${esc(x.type)}${x.element?' · '+esc(x.element):''}</span><span class="price">${Number(night&&x.nightPrice?x.nightPrice:x.price).toLocaleString()} 盧恩${night&&x.nightPrice?' · 深夜改價':''}</span></div><h3>${esc(x.name)}</h3><div class="effect">${esc(x.effect||'原表未提供詞條')}</div><div class="hint">戰技、法術與深夜詞條 ＋</div></summary><div class="detail"><b>戰技／法術</b>
+${esc(x.skill||'未提供')}
+
+<b>深夜詛咒詞條</b>
+${esc(x.curse||'原表未列出')}</div></details>`}
+function villagePreview(weapons){
+ const highlights=merchantHighlights(weapons,night);
+ return highlights.length?`<div class="preview-highlights">${highlights.map(item=>`<div class="preview-item"><strong>${esc(item.name)}</strong>${item.effects.map(effect=>`<div class="preview-effect ${effect.category}"><span class="effect-category">${effect.category==='attack'?'攻擊':'減傷'}</span><span>${esc(effect.text)}${effect.nightOnly?'<small class="night-only">深夜詛咒詞條</small>':''}</span></div>`).join('')}</div>`).join('')}</div>`:'<p class="preview-empty">此模式沒有符合的重點詞條</p>';
+}
+function renderRoute(){
+ const ordinary=D.weapons.filter(x=>x.merchant==='普通商人');
+ const highest=n=>Math.max(...ordinary.filter(x=>x.number===n).map(x=>night&&x.nightPrice?x.nightPrice:x.price));
+ const isClue=x=>(night&&x.nightPrice?x.nightPrice:x.price)===highest(x.number);
+ if(routeNumber===null){
+  const groups=Array.from({length:21},(_,n)=>({n,rows:ordinary.filter(x=>x.number===n&&isClue(x))})).filter(g=>g.rows.some(x=>match([x.name,x.effect].join(' '))));
+  $('#count').textContent=`${groups.length} / 21 組普通商人 · 選一組查看村落商品`;
+  $('#results').innerHTML=groups.length?'<div class="notice">辨認普通商人最貴的武器 → 確認共用編號 → 查村落商品。同名武器請用詞條區分。</div>'+groups.map(g=>{
+   const key=g.rows.find(x=>x.price===42000)||g.rows[0];
+   const clues=$('#query').value?g.rows.filter(x=>match([x.name,x.effect].join(' '))):[key];
+   const village=D.weapons.filter(x=>x.merchant==='村落商人'&&x.number===g.n);
+   return `<article class="mapping"><div class="cardhead"><strong>普通商人 ${g.n} 號</strong><span>最貴武器 · ${highest(g.n).toLocaleString()} 盧恩</span></div><div class="small">${clues.map(x=>`<h3>${esc(x.name)}</h3><div class="effect">${esc(x.effect||'')}</div>`).join('')}</div><div class="large"><div class="sectionlabel">村落商人 · 攻擊／減傷重點預覽</div>${villagePreview(village)}<button class="route-open" data-route="${g.n}">查看村落商人 · ${village.length} 件武器 →</button></div></article>`;
+  }).join(''):'<div class="empty">找不到符合的普通商人<br><small>請輸入普通商人最貴的武器名稱，或重設條件。</small></div>';
+  document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>{routeNumber=Number(b.dataset.route);render();$('#results').scrollIntoView({behavior:'smooth',block:'start'});});
+ }else{
+  const rows=D.weapons.filter(x=>x.merchant==='村落商人'&&x.number===routeNumber);
+  const clues=ordinary.filter(x=>x.number===routeNumber&&isClue(x));
+  const items=D.items.filter(x=>{if(x.merchant!=='村落商人')return false;const rule=String(x.rule||'');const range=rule.match(/(\d+)号~(\d+)号/);return range&&routeNumber>=Number(range[1])&&routeNumber<=Number(range[2]);});
+  $('#count').textContent=`商人共用編號 ${routeNumber} 號 · 村落商品`;
+  $('#results').innerHTML=`<div class="route-heading"><button id="route-back">← 重新選擇普通商人</button><h2>村落商人 ${routeNumber} 號</h2><p>普通商人最貴武器：${clues.map(x=>esc(x.name)+' · '+esc(x.effect)).join('、')}</p><span>${rows.length} 件武器 · ${night?'深夜':'一般'}模式價格</span></div>`+rows.map(routeWeapon).join('')+`<div class="route-heading"><h2>同組村落商人限定道具</h2><p>僅顯示依商人編號出現的噴霧、香藥與露滴。</p></div>`+items.map(x=>`<details class="product"><summary><div class="meta"><span>${esc(x.rule)}</span><span class="price">${Number(x.price).toLocaleString()} 盧恩</span></div><h3>${esc(x.name)}</h3><div class="hint">限購：${esc(x.limit)} · 點開查看效果 ＋</div></summary><div class="detail">${esc(x.effect)}</div></details>`).join('');
+  $('#route-back').onclick=()=>{routeNumber=null;render()};
+ }
+ window.ZH.apply();
+}
+$('#query').oninput=()=>{routeNumber=null;render()};$('#clear').onclick=()=>{$('#query').value='';routeNumber=null;render();$('#query').focus()};$('#reset').onclick=()=>{$('#query').value='';routeNumber=null;merchant=num=type='';night=false;filters();render()};document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;routeNumber=null;merchant=num=type='';$('#query').value='';document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#query').placeholder=tab==='route'?'輸入普通商人最貴的武器名稱':tab==='map'?'輸入小商人武器、大商人武器或效果':'搜尋名稱、戰技、詞條或效果';filters();render()});$('#help').onclick=()=>$('#guide').showModal();$('#close').onclick=()=>$('#guide').close();filters();render();
